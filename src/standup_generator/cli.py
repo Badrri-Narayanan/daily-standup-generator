@@ -53,6 +53,11 @@ def _cmd_generate(args) -> int:
     return 0
 
 
+def _normalise_url(url: str) -> str:
+    url = url.strip().rstrip("/")
+    return url if "://" in url else f"https://{url}"
+
+
 def _cmd_init(args) -> int:
     target = Path(args.dir).expanduser()
     files = {"standup.yaml": "standup.example.yaml", ".env.example": "env.example"}
@@ -62,10 +67,16 @@ def _cmd_init(args) -> int:
         return 1
     target.mkdir(parents=True, exist_ok=True)
     pkg = resources.files("standup_generator").joinpath("templates")
+    jira_url = args.jira_url
+    if jira_url is None and sys.stdin.isatty():
+        jira_url = input("Jira site URL (e.g. https://yourco.atlassian.net, blank to skip): ")
     for name, source in files.items():
-        (target / name).write_text(pkg.joinpath(source).read_text())
+        text = pkg.joinpath(source).read_text()
+        if name == ".env.example" and jira_url and jira_url.strip():
+            text = text.replace("JIRA_BASE_URL=\n", f"JIRA_BASE_URL={_normalise_url(jira_url)}\n")
+        (target / name).write_text(text)
         print(f"wrote {target / name}")
-    print("Next: copy .env.example to .env, add your tokens, and edit standup.yaml.")
+    print("Next: copy .env.example to .env, fill in JIRA_BASE_URL and your tokens, and edit standup.yaml.")
     return 0
 
 
@@ -123,6 +134,7 @@ def _parser() -> argparse.ArgumentParser:
 
     init = sub.add_parser("init", help="write example standup.yaml and .env.example")
     init.add_argument("--dir", default=".")
+    init.add_argument("--jira-url", help="your Jira site, e.g. https://acme.atlassian.net")
     init.set_defaults(func=_cmd_init)
 
     hist = sub.add_parser("history", help="list past generations")

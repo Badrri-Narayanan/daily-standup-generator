@@ -113,7 +113,7 @@ Custom sources are registered in config by dotted path
 
 ### 6.3 Default sources
 
-**Jira Cloud** (`base_url`, `email`, `api_token` from env)
+**Jira Cloud** (`base_url`, `email`, `api_token` from env — `JIRA_BASE_URL` in `.env`, falling back to `sources.jira.base_url`)
 - In progress: JQL `assignee = currentUser() AND status in (<in_progress_statuses>)`.
 - Completed (handed off by me): JQL
   `status CHANGED TO (<handoff_statuses>) BY currentUser() DURING (<start>, <end>)
@@ -240,7 +240,8 @@ ticket_key_pattern: "[A-Z][A-Z0-9]+-\\d+"
 sources:
   jira:
     enabled: true
-    base_url: https://yourco.atlassian.net
+    base_url_env: JIRA_BASE_URL    # .env value wins over base_url below
+    # base_url: https://acme.atlassian.net
     email_env: JIRA_EMAIL
     token_env: JIRA_API_TOKEN
     project_keys: []

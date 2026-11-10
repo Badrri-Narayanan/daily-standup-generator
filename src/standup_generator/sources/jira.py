@@ -60,6 +60,9 @@ def _parse_jira_time(value: str) -> datetime:
     return datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%f%z")
 
 
+EXAMPLE_BASE_URL = "https://yourco.atlassian.net"
+
+
 class JiraSource:
     name = "jira"
 
@@ -70,14 +73,23 @@ class JiraSource:
 
     def collect(self, window: TimeWindow) -> SourceResult:
         result = SourceResult(source=self.name)
-        if not self.cfg.base_url:
-            result.errors.append("jira: set sources.jira.base_url")
+        base = (self.env.get(self.cfg.base_url_env) or self.cfg.base_url or "").strip().rstrip("/")
+        if not base:
+            result.errors.append(
+                f"jira: set {self.cfg.base_url_env} in .env (or sources.jira.base_url in standup.yaml)"
+            )
+            return result
+        if base == EXAMPLE_BASE_URL:
+            result.errors.append(
+                f"jira: Jira URL is still the example value ({EXAMPLE_BASE_URL}) — "
+                f"set {self.cfg.base_url_env} in .env to your Jira site"
+            )
             return result
         email, token = self.env.get(self.cfg.email_env), self.env.get(self.cfg.token_env)
         if not email or not token:
             result.errors.append(f"jira: set {self.cfg.email_env} / {self.cfg.token_env} in .env")
             return result
-        base = self.cfg.base_url.rstrip("/")
+        self._base = base
         client = self._client or httpx.Client(timeout=TIMEOUT)
         try:
             self._collect(client, base, (email, token), window, result)
@@ -94,8 +106,9 @@ class JiraSource:
         resp = client.request(method, url, auth=auth, headers={"Accept": "application/json"}, **kw)
         if resp.status_code in (401, 403):
             raise JiraError(
-                f"jira: authentication failed ({resp.status_code}) — "
-                f"check {self.cfg.email_env} / {self.cfg.token_env}"
+                f"jira: authentication failed ({resp.status_code}) at {self._base} — "
+                f"check {self.cfg.email_env} / {self.cfg.token_env} "
+                f"and that {self.cfg.base_url_env} is your Jira site"
             )
         if resp.status_code == 400:
             try:

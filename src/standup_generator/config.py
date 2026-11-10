@@ -20,6 +20,7 @@ def _expand(p: Path | str) -> Path:
 class JiraConfig(BaseModel):
     enabled: bool = True
     base_url: str | None = None
+    base_url_env: str = "JIRA_BASE_URL"
     email_env: str = "JIRA_EMAIL"
     token_env: str = "JIRA_API_TOKEN"
     project_keys: list[str] = Field(default_factory=list)

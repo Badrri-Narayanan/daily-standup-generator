@@ -68,7 +68,16 @@ def test_missing_token_reports_error_without_http(window):
 
 def test_missing_base_url(window):
     r = JiraSource(JiraConfig(), ENV).collect(window)
-    assert r.errors == ["jira: set sources.jira.base_url"]
+    assert r.errors == ["jira: set JIRA_BASE_URL in .env (or sources.jira.base_url in standup.yaml)"]
+
+
+def test_base_url_from_env_overrides_config(window):
+    with respx.mock(assert_all_called=False) as router:
+        router.get(f"{BASE}/rest/api/3/myself").respond(401)
+        cfg = JiraConfig(base_url="https://yourco.atlassian.net")
+        r = JiraSource(cfg, {**ENV, "JIRA_BASE_URL": BASE + "/"}).collect(window)
+        assert router.calls.call_count == 1
+    assert "authentication failed (401) at " + BASE + " " in r.errors[0]
 
 
 def test_in_progress_and_completed(window):
@@ -149,7 +158,20 @@ def test_401(window):
     with respx.mock() as router:
         router.get(f"{BASE}/rest/api/3/myself").respond(401)
         r = src().collect(window)
-    assert r.errors == ["jira: authentication failed (401) — check JIRA_EMAIL / JIRA_API_TOKEN"]
+    assert r.errors == [
+        f"jira: authentication failed (401) at {BASE} — check JIRA_EMAIL / JIRA_API_TOKEN "
+        "and that JIRA_BASE_URL is your Jira site"
+    ]
+
+
+def test_example_base_url_is_rejected_without_http(window):
+    with respx.mock() as router:  # any HTTP call would fail: no routes
+        r = JiraSource(JiraConfig(base_url="https://yourco.atlassian.net/"), ENV).collect(window)
+        assert not router.calls
+    assert r.errors == [
+        "jira: Jira URL is still the example value (https://yourco.atlassian.net) — "
+        "set JIRA_BASE_URL in .env to your Jira site"
+    ]
 
 
 def test_network_error(window):

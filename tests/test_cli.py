@@ -50,6 +50,18 @@ def test_cli_init_writes_files_and_refuses_overwrite(tmp_path, capsys):
     assert cli.main(["init", "--dir", str(tmp_path)]) == 1
 
 
+def test_cli_init_sets_jira_url_from_flag(tmp_path):
+    assert cli.main(["init", "--dir", str(tmp_path), "--jira-url", "https://acme.atlassian.net/"]) == 0
+    assert "JIRA_BASE_URL=https://acme.atlassian.net\n" in (tmp_path / ".env.example").read_text()
+
+
+def test_cli_init_asks_for_jira_url_when_interactive(tmp_path, monkeypatch):
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True, raising=False)
+    monkeypatch.setattr("builtins.input", lambda prompt: "acme.atlassian.net")
+    assert cli.main(["init", "--dir", str(tmp_path)]) == 0
+    assert "JIRA_BASE_URL=https://acme.atlassian.net\n" in (tmp_path / ".env.example").read_text()
+
+
 def test_cli_history_list_show_and_save_final(tmp_path, capsys, monkeypatch):
     cfg = str(write_cfg(tmp_path))
     monkeypatch.setattr(generator, "build_sources", lambda cfg, env: ([Fake()], []))

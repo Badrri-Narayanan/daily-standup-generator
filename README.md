@@ -20,10 +20,14 @@ uv pip install -e .
 ## Set up
 
 ```bash
-standup init                 # writes standup.yaml and .env.example here
+standup init                 # writes standup.yaml and .env.example here; asks for your Jira URL
+                             # (or pass --jira-url https://acme.atlassian.net)
 cp .env.example .env         # then fill in your tokens
 ```
 
+- `JIRA_BASE_URL` — your Jira site, e.g. `https://acme.atlassian.net`
+  (`standup init` fills this in if you give it the URL; `sources.jira.base_url` in
+  `standup.yaml` also works, and `.env` wins if both are set)
 - `JIRA_EMAIL` / `JIRA_API_TOKEN` — create a token at
   https://id.atlassian.com/manage-profile/security/api-tokens
 - `GITHUB_TOKEN` — a fine-grained token with read access to pull requests
@@ -31,7 +35,6 @@ cp .env.example .env         # then fill in your tokens
 
 Then edit `standup.yaml`:
 
-- `sources.jira.base_url` — e.g. `https://yourco.atlassian.net`
 - `sources.jira.in_progress_statuses` / `handoff_statuses` — **must match your Jira
   workflow names**. If they don't, the page shows a "query rejected" error.
 - `sources.git_local.scan_dirs` or `repos` — where your repos live.
