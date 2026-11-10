@@ -45,3 +45,30 @@ def repo(tmp_path) -> Path:
     _git(r, "checkout", "-q", "-b", "feat/OFF-12-retry")
     _commit(r, "OFF-12 add retry", "me@x.com", "2026-11-09T12:00:00+00:00")
     return r
+
+
+from standup_generator.models import Comment, Commit, PullRequest, Ticket  # noqa: E402
+
+T = datetime(2026, 11, 9, 12, 0, tzinfo=UTC)
+
+
+def ticket(key, category="in_progress", **kw):
+    kw.setdefault("summary", f"Summary {key}")
+    kw.setdefault("status", "In Progress" if category == "in_progress" else "QA")
+    kw.setdefault("url", f"https://co.atlassian.net/browse/{key}")
+    kw.setdefault("source", "jira")
+    return Ticket(key=key, category=category, **kw)
+
+
+def commit(subject, branches=(), sha=None):
+    return Commit(sha=sha or subject[:7], repo="svc", subject=subject, timestamp=T, branches=list(branches))
+
+
+def pr(number, title, head="", state="open", created=T, approved=None):
+    return PullRequest(number=number, title=title, repo="acme/svc", url=f"https://gh/{number}",
+                       state=state, head_branch=head, created_at=created, updated_at=created,
+                       approved=approved)
+
+
+def comment(body, author="Alice"):
+    return Comment(author=author, body=body, created_at=T)
