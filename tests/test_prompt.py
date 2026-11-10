@@ -91,3 +91,11 @@ def test_custom_template_path(window, tmp_path):
     t.write_text("CUSTOM {{ today }} {{ bundle.in_progress|length }} {{ 'abcdef'|truncate_chars(4) }}")
     out = render(window, cfg=PromptConfig(template_path=t))
     assert out == "CUSTOM 2026-11-10 1 abc…"
+
+
+def test_pr_dates_rendered(window):
+    from datetime import datetime, timezone
+    p = pr(9, "OFF-1 old", state="merged")
+    p.merged_at = datetime(2026, 10, 20, 15, 0, tzinfo=timezone.utc)
+    out = render(window, in_progress=[TicketActivity(ticket("OFF-1"), pull_requests=[p])])
+    assert "merged 2026-10-20" in out and "opened 2026-11-09" in out

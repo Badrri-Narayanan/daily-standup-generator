@@ -30,7 +30,8 @@ def test_unmatched_commit_and_pr_go_to_other(window):
 
 def test_key_without_ticket_becomes_other_ticket(window):
     c = commit("OFF-99 spike")
-    b = correlate(window, [SourceResult("git_local", commits=[c])], PATTERN)
+    b = correlate(window, [SourceResult("git_local", commits=[c]),
+                           SourceResult("jira", tickets=[ticket("OFF-1")])], PATTERN)
     assert len(b.other_tickets) == 1
     other = b.other_tickets[0]
     assert other.ticket.key == "OFF-99"
@@ -60,3 +61,31 @@ def test_source_errors_and_info_collected(window):
     b = correlate(window, [SourceResult("jira", errors=["jira: bad"]), SourceResult("git_local", info=["none"])], PATTERN)
     assert b.source_errors == {"jira": ["jira: bad"]}
     assert b.source_info == {"git_local": ["none"]}
+
+
+def test_common_words_are_not_tickets(window):
+    commits = [commit("fix utf-8 decoding", sha="a"), commit("bump node-18 to node-20", sha="b"),
+               commit("verify SHA-256 checksum", sha="c"), commit("deps", ["dependabot/npm/axios-1.6.0"], sha="d")]
+    b = correlate(window, [SourceResult("git_local", commits=commits),
+                           SourceResult("jira", tickets=[ticket("OFF-1")])], PATTERN)
+    assert b.other_tickets == []
+    assert b.other_commits == commits
+
+
+def test_unknown_prefix_stays_other_commit(window):
+    c = commit("OFF-99 spike")
+    b = correlate(window, [SourceResult("git_local", commits=[c])], PATTERN)
+    assert b.other_tickets == [] and b.other_commits == [c]
+
+
+def test_configured_project_prefix_counts_as_known(window):
+    c = commit("OFF-99 spike")
+    b = correlate(window, [SourceResult("git_local", commits=[c])], PATTERN, known_prefixes=["OFF"])
+    assert b.other_tickets[0].ticket.key == "OFF-99"
+
+
+def test_key_glued_to_word_not_matched(window):
+    c = commit("see XOFF-1 and OFF-1x")
+    b = correlate(window, [SourceResult("git_local", commits=[c]),
+                           SourceResult("jira", tickets=[ticket("OFF-1")])], PATTERN)
+    assert b.other_commits == [c]

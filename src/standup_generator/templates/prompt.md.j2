@@ -5,7 +5,7 @@
   - Commit in {{ c.repo }}: {{ c.subject }} ({{ c.timestamp.strftime('%Y-%m-%d %H:%M') }})
 {% endfor %}
 {% for p in ta.pull_requests %}
-  - PR {{ p.repo }}#{{ p.number }} [{{ p.state }}{% if p.approved %}, approved{% endif %}]: {{ p.title }}
+  - PR {{ p.repo }}#{{ p.number }} [{{ p.state }}{% if p.approved %}, approved{% endif %}, opened {{ p.created_at.strftime('%Y-%m-%d') }}{% if p.merged_at %}, merged {{ p.merged_at.strftime('%Y-%m-%d') }}{% endif %}]: {{ p.title }}
 {% endfor %}
 {% for c in ta.ticket.comments %}
   - Comment by {{ c.author }} ({{ c.created_at.strftime('%Y-%m-%d %H:%M') }}): {{ c.body|replace('\n', ' ')|truncate_chars(max_comment_chars) }}
@@ -21,6 +21,7 @@ Write it in this order: In progress → Completed / moved to QA → Blockers.
 - Completed / moved to QA: one line per ticket, with its key.
 - Blockers: list what I reported first, then any possible blockers below that genuinely look blocking. If there are none, say "No blockers."
 - If something is listed under "Other activity", fold it in briefly only if it is meaningful work.
+- Only call a PR merged or opened "yesterday" if its listed date falls in the covered period.
 - Keep the whole update under about 150 words. Plain text, no headings.
 
 ## Context
@@ -57,7 +58,7 @@ None.
 - Commit in {{ c.repo }}: {{ c.subject }} ({{ c.timestamp.strftime('%Y-%m-%d %H:%M') }})
 {% endfor %}
 {% for p in bundle.other_prs %}
-- PR {{ p.repo }}#{{ p.number }} [{{ p.state }}]: {{ p.title }}
+- PR {{ p.repo }}#{{ p.number }} [{{ p.state }}, opened {{ p.created_at.strftime('%Y-%m-%d') }}{% if p.merged_at %}, merged {{ p.merged_at.strftime('%Y-%m-%d') }}{% endif %}]: {{ p.title }}
 {% endfor %}
 {% if not (bundle.other_tickets or bundle.other_commits or bundle.other_prs) %}
 None.

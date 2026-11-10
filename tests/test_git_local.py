@@ -51,3 +51,13 @@ def test_no_author_email_is_error(repo, window, monkeypatch):
     src = GitLocalSource(GitLocalConfig(repos=[repo]), default_email=lambda: None)
     r = src.collect(window)
     assert r.errors == ["git_local: no author email — set sources.git_local.author_emails"]
+
+
+def test_rebased_old_commit_excluded(repo, window):
+    r = _src(repos=[repo]).collect(window)
+    assert "OFF-12 rebased old work" not in {c.subject for c in r.commits}
+
+
+def test_stash_not_reported(repo, window):
+    r = _src(repos=[repo]).collect(window)
+    assert not any("WIP on" in c.subject or "index on" in c.subject for c in r.commits)

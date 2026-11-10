@@ -23,12 +23,12 @@ def _git(repo: Path, *args: str, env: dict | None = None) -> None:
     subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, env=full_env)
 
 
-def _commit(repo: Path, msg: str, email: str, when: str) -> None:
+def _commit(repo: Path, msg: str, email: str, when: str, committed: str | None = None) -> None:
     f = repo / "f.txt"
     f.write_text(f.read_text() + msg + "\n" if f.exists() else msg + "\n")
     _git(repo, "add", ".")
     env = {
-        "GIT_AUTHOR_DATE": when, "GIT_COMMITTER_DATE": when,
+        "GIT_AUTHOR_DATE": when, "GIT_COMMITTER_DATE": committed or when,
         "GIT_AUTHOR_EMAIL": email, "GIT_COMMITTER_EMAIL": email,
         "GIT_AUTHOR_NAME": "x", "GIT_COMMITTER_NAME": "x",
     }
@@ -44,6 +44,15 @@ def repo(tmp_path) -> Path:
     _commit(r, "teammate change", "other@x.com", "2026-11-09T11:00:00+00:00")
     _git(r, "checkout", "-q", "-b", "feat/OFF-12-retry")
     _commit(r, "OFF-12 add retry", "me@x.com", "2026-11-09T12:00:00+00:00")
+    # authored long ago, rewritten (rebased) inside the window
+    _commit(r, "OFF-12 rebased old work", "me@x.com", "2026-10-02T10:00:00+00:00",
+            committed="2026-11-09T13:00:00+00:00")
+    # a stash created inside the window
+    (r / "f.txt").write_text("dirty\n")
+    _git(r, "stash", "-q", env={"GIT_COMMITTER_DATE": "2026-11-09T14:00:00+00:00",
+                               "GIT_AUTHOR_DATE": "2026-11-09T14:00:00+00:00",
+                               "GIT_AUTHOR_EMAIL": "me@x.com", "GIT_COMMITTER_EMAIL": "me@x.com",
+                               "GIT_AUTHOR_NAME": "x", "GIT_COMMITTER_NAME": "x"})
     return r
 
 

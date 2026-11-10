@@ -49,7 +49,7 @@ def generate(
         with ThreadPoolExecutor(max_workers=len(sources)) as pool:
             results.extend(pool.map(lambda s: _safe_collect(s, window), sources))
 
-    bundle = correlate(window, results, config.ticket_key_pattern)
+    bundle = correlate(window, results, config.ticket_key_pattern, config.sources.jira.project_keys)
     bundle.blocker_hints = find_blocker_hints(bundle, config.blockers, now)
     prompt = build_prompt(bundle, plans, blockers, config.prompt, now.date())
     result = GenerationResult(prompt=prompt, bundle=bundle)

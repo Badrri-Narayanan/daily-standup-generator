@@ -91,3 +91,15 @@ def test_network_error(window):
         router.get(f"{API}/search/issues").mock(side_effect=httpx.ConnectError("down"))
         r = src().collect(window)
     assert r.errors[0].startswith("github: cannot reach")
+
+
+def test_403_on_one_pr_keeps_others(window):
+    with respx.mock() as router:
+        router.get(f"{API}/search/issues").respond(json={"items": [item(1, repo="sso/locked"), item(2)]})
+        router.get(f"{API}/repos/sso/locked/pulls/1").respond(403, headers={"X-GitHub-SSO": "required; url=x"})
+        router.get(f"{API}/repos/acme/svc/pulls/2").respond(json=pull(2))
+        router.get(f"{API}/repos/acme/svc/pulls/2/reviews").respond(json=[])
+        r = src().collect(window)
+    assert [p.number for p in r.pull_requests] == [1, 2]
+    assert next(p for p in r.pull_requests if p.number == 2).head_branch == "feat/OFF-2"
+    assert any("sso/locked#1" in e and "403" in e for e in r.errors)

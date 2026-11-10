@@ -16,7 +16,9 @@ TIMEOUT = 15.0
 
 
 class GitHubAuthError(Exception):
-    pass
+    def __init__(self, status: int, hint: str = "") -> None:
+        super().__init__(f"HTTP {status}{f' ({hint})' if hint else ''}")
+        self.status = status
 
 
 def _ts(value: str | None) -> datetime | None:
@@ -60,7 +62,9 @@ class GitHubSource:
     def _get(self, client: httpx.Client, url: str, headers: dict, **kw) -> Any:
         resp = client.get(url, headers=headers, **kw)
         if resp.status_code in (401, 403):
-            raise GitHubAuthError()
+            hint = resp.headers.get("X-GitHub-SSO") or (
+                "rate limited" if resp.headers.get("X-RateLimit-Remaining") == "0" else "")
+            raise GitHubAuthError(resp.status_code, hint)
         resp.raise_for_status()
         return resp.json()
 
@@ -82,9 +86,7 @@ class GitHubSource:
             )
             try:
                 self._enrich(client, api, headers, pr)
-            except GitHubAuthError:
-                raise
-            except httpx.HTTPError as exc:
+            except (GitHubAuthError, httpx.HTTPError) as exc:
                 result.errors.append(f"github: could not load details for {repo}#{pr.number}: {exc}")
             result.pull_requests.append(pr)
 

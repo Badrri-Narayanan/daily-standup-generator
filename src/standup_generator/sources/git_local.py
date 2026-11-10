@@ -94,7 +94,7 @@ class GitLocalSource:
             result.errors.append(f"git_local: {repo}: directory does not exist")
             return
         cmd = [
-            "git", "-C", str(repo), "log", "--all", "--source",
+            "git", "-C", str(repo), "log", "--branches", "--remotes", "--source",
             f"--since={window.start.isoformat()}", f"--until={window.end.isoformat()}",
             *[f"--author={e}" for e in emails],
             f"--format=%H{_SEP}%aI{_SEP}%S{_SEP}%s", "-n", str(MAX_COMMITS_PER_REPO),
@@ -114,6 +114,11 @@ class GitLocalSource:
             if len(parts) != 4:
                 continue
             sha, when, ref, subject = parts
+            authored = datetime.fromisoformat(when)
+            # --since filters on committer date; a rebase rewrites that, so also
+            # require the work itself to be authored inside the window.
+            if authored < window.start:
+                continue
             branch = _strip_ref(ref)
             if sha in by_sha:
                 if branch and branch not in by_sha[sha].branches:
@@ -121,7 +126,7 @@ class GitLocalSource:
                 continue
             by_sha[sha] = Commit(
                 sha=sha, repo=repo.name, subject=subject,
-                timestamp=datetime.fromisoformat(when),
+                timestamp=authored,
                 branches=[branch] if branch else [],
             )
         result.commits.extend(by_sha.values())

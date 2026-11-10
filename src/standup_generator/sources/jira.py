@@ -1,11 +1,12 @@
 """Jira Cloud tickets: in progress (assigned to me) and handed off by me in the window.
 
-Read-only. Dates in JQL are written in the window's timezone; Jira interprets them in
-your Jira profile timezone, so keep those aligned.
+Read-only. The handoff window is sent as a relative range ending at Jira's now(),
+so it doesn't depend on your Jira profile timezone.
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
@@ -17,7 +18,6 @@ from ..models import Comment, SourceResult, Ticket, TimeWindow
 
 MAX_TICKETS = 100
 TIMEOUT = 15.0
-_JQL_DATE = "%Y-%m-%d %H:%M"
 
 
 class JiraError(Exception):
@@ -118,12 +118,15 @@ class JiraSource:
 
         project = f" AND project in ({', '.join(self.cfg.project_keys)})" if self.cfg.project_keys else ""
         in_progress = _quote_list(self.cfg.in_progress_statuses)
-        start, end = window.start.strftime(_JQL_DATE), window.end.strftime(_JQL_DATE)
-        jql_in_progress = f"assignee = currentUser() AND status in ({in_progress}){project}"
-        jql_completed = (
-            f"status CHANGED TO ({_quote_list(self.cfg.handoff_statuses)}) BY currentUser() "
-            f'DURING ("{start}", "{end}") AND status not in ({in_progress}){project}'
+        # Relative range ("-Nm" .. now()) so Jira's profile timezone can't skew the window.
+        minutes = math.ceil((window.end - window.start).total_seconds() / 60)
+        during = f'DURING ("-{minutes}m", now())'
+        changed = " OR ".join(
+            f"status CHANGED TO {_quote_list([s])} BY currentUser() {during}"
+            for s in self.cfg.handoff_statuses
         )
+        jql_in_progress = f"assignee = currentUser() AND status in ({in_progress}){project}"
+        jql_completed = f"({changed}) AND status not in ({in_progress}){project}"
 
         seen: set[str] = set()
         for jql, category in ((jql_in_progress, "in_progress"), (jql_completed, "completed")):

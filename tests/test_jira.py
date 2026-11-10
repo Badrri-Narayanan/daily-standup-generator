@@ -88,8 +88,8 @@ def test_completed_jql_uses_by_current_user(window):
     completed_jql = next(b["jql"] for b in captured if "CHANGED TO" in b["jql"])
     assert "BY currentUser()" in completed_jql
     assert "assignee = currentUser()" not in completed_jql
-    assert '"Ready for QA"' in completed_jql
-    assert 'DURING ("2026-11-09 00:00", "2026-11-10 09:00")' in completed_jql
+    assert ('(status CHANGED TO "QA" BY currentUser() DURING ("-1980m", now()) OR '
+            'status CHANGED TO "Ready for QA" BY currentUser() DURING ("-1980m", now())') in completed_jql
     assert "project in (OFF)" in completed_jql
     assert all("customfield_100" in b["fields"] for b in captured)
 

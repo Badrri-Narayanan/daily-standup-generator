@@ -1,7 +1,7 @@
 # Daily standup generator config. Copy to ./standup.yaml or ~/.config/standup/standup.yaml.
 # Secrets (tokens) go in .env, never here.
 
-timezone: Europe/London            # optional; defaults to system local time
+# timezone: Europe/London          # optional; defaults to system local time
 working_days: [mon, tue, wed, thu, fri]
 holidays: []                       # e.g. [2026-12-25, 2026-12-26]
 ticket_key_pattern: "[A-Z][A-Z0-9]+-\\d+"
