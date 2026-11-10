@@ -45,5 +45,5 @@ def test_invalid_working_day_rejected(tmp_path):
 
 
 def test_example_config_loads():
-    cfg = load_config(ROOT / "standup.example.yaml")
+    cfg = load_config(ROOT / "src/standup_generator/templates/standup.example.yaml")
     assert cfg.sources.jira.base_url
