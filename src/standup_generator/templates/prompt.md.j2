@@ -1,0 +1,91 @@
+{% macro activity(ta) %}
+- **{{ ta.ticket.key }}**{% if ta.ticket.summary %} — {{ ta.ticket.summary }}{% endif %} (status: {{ ta.ticket.status }}){% if ta.ticket.url %} {{ ta.ticket.url }}{% endif %}
+
+{% for c in ta.commits %}
+  - Commit in {{ c.repo }}: {{ c.subject }} ({{ c.timestamp.strftime('%Y-%m-%d %H:%M') }})
+{% endfor %}
+{% for p in ta.pull_requests %}
+  - PR {{ p.repo }}#{{ p.number }} [{{ p.state }}{% if p.approved %}, approved{% endif %}]: {{ p.title }}
+{% endfor %}
+{% for c in ta.ticket.comments %}
+  - Comment by {{ c.author }} ({{ c.created_at.strftime('%Y-%m-%d %H:%M') }}): {{ c.body|replace('\n', ' ')|truncate_chars(max_comment_chars) }}
+{% endfor %}
+{% endmacro %}
+## Instructions
+
+You are helping me prepare my spoken daily standup update.
+Use only the facts provided below. Never invent work, tickets, or plans.
+Write it in this order: In progress → Completed / moved to QA → Blockers.
+- In progress: one or two short, spoken-style lines per ticket saying where it stands, based on the commits, PRs and comments listed. Include the ticket key.
+- Mention what I plan to do next only where I have provided plans below.
+- Completed / moved to QA: one line per ticket, with its key.
+- Blockers: list what I reported first, then any possible blockers below that genuinely look blocking. If there are none, say "No blockers."
+- If something is listed under "Other activity", fold it in briefly only if it is meaningful work.
+- Keep the whole update under about 150 words. Plain text, no headings.
+
+## Context
+
+Today is {{ today }}. Activity covers {{ bundle.window.start.strftime('%Y-%m-%d %H:%M') }} to {{ bundle.window.end.strftime('%Y-%m-%d %H:%M') }}.
+
+## In progress
+
+{% if plans %}
+My plans for today:
+{{ plans }}
+
+{% endif %}
+{% for ta in bundle.in_progress %}
+{{ activity(ta) }}
+{%- else %}
+None.
+{% endfor %}
+
+## Completed / moved to QA
+
+{% for ta in bundle.completed %}
+{{ activity(ta) }}
+{%- else %}
+None.
+{% endfor %}
+
+## Other activity
+
+{% for ta in bundle.other_tickets %}
+{{ activity(ta) }}
+{%- endfor %}
+{% for c in bundle.other_commits %}
+- Commit in {{ c.repo }}: {{ c.subject }} ({{ c.timestamp.strftime('%Y-%m-%d %H:%M') }})
+{% endfor %}
+{% for p in bundle.other_prs %}
+- PR {{ p.repo }}#{{ p.number }} [{{ p.state }}]: {{ p.title }}
+{% endfor %}
+{% if not (bundle.other_tickets or bundle.other_commits or bundle.other_prs) %}
+None.
+{% endif %}
+
+## Blockers
+
+{% if blockers %}
+Reported by me:
+{{ blockers }}
+
+{% endif %}
+{% if bundle.blocker_hints %}
+Possible blockers — verify:
+{% for h in bundle.blocker_hints %}
+- {% if h.ticket_key %}{{ h.ticket_key }}: {% endif %}{{ h.reason }} — {{ h.detail|replace('\n', ' ') }}
+{% endfor %}
+{% endif %}
+{% if not blockers and not bundle.blocker_hints %}
+None reported.
+{% endif %}
+{% if bundle.source_errors %}
+
+## Data notes
+
+{% for source, errors in bundle.source_errors.items() %}
+{% for e in errors %}
+- {{ source }} was unavailable: {{ e }}. Missing data from this source does not mean no work was done.
+{% endfor %}
+{% endfor %}
+{% endif %}
