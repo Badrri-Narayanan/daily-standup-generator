@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Standup Generator</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Standup Generator</h1>
+    <p class="muted" id="window-label">Loading window…</p>
+  </header>
+
+  <main>
+    <section class="card" aria-labelledby="inputs-title">
+      <h2 id="inputs-title">Before you generate</h2>
+      <label for="since">Since (optional — defaults to last working day)</label>
+      <input type="date" id="since">
+
+      <label for="plans">What I'm planning next</label>
+      <textarea id="plans" rows="3" placeholder="e.g. Finish retry tests for OFF-1234, pair with QA on OFF-1301"></textarea>
+
+      <label for="blockers">Blockers</label>
+      <textarea id="blockers" rows="2" placeholder="Anything blocking you that isn't on a ticket"></textarea>
+
+      <div class="actions">
+        <button id="generate" class="primary">Generate</button>
+        <span id="status" class="muted" role="status"></span>
+      </div>
+    </section>
+
+    <div id="errors"></div>
+
+    <section class="card hidden" id="result" aria-labelledby="result-title">
+      <div class="row">
+        <h2 id="result-title">Prompt</h2>
+        <span class="muted" id="result-meta"></span>
+      </div>
+      <p class="muted">Paste this into the AI of your choice.</p>
+      <textarea id="prompt" rows="16" readonly></textarea>
+      <div class="actions">
+        <button id="copy">Copy prompt</button>
+      </div>
+
+      <label for="final">Paste the AI's standup here</label>
+      <textarea id="final" rows="6" placeholder="Save the final version to your history"></textarea>
+      <div class="actions">
+        <button id="save-final">Save</button>
+        <span id="final-status" class="muted" role="status"></span>
+      </div>
+
+      <details id="collected-wrap">
+        <summary>Collected data <span id="counts" class="muted"></span></summary>
+        <pre id="collected"></pre>
+      </details>
+    </section>
+
+    <section class="card" aria-labelledby="history-title">
+      <div class="row">
+        <h2 id="history-title">History</h2>
+        <button id="refresh-history" class="link">Refresh</button>
+      </div>
+      <ul id="history" class="history"></ul>
+      <p id="history-empty" class="muted hidden">No standups yet.</p>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
