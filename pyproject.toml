@@ -28,3 +28,4 @@ packages = ["src/standup_generator"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
