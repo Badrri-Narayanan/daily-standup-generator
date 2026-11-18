@@ -9,7 +9,9 @@ The prompt follows this order: **In progress → Completed / moved to QA → Blo
 
 ## Install
 
-Requires Python 3.11+. With [uv](https://github.com/astral-sh/uv):
+Requires [uv](https://github.com/astral-sh/uv). The quickest way is to just run
+`./run.sh` (see [Use](#use)): it creates the virtualenv and installs everything on
+first run. To set it up by hand (Python 3.11+):
 
 ```bash
 uv venv --python 3.12
@@ -48,8 +50,20 @@ from the config file's directory.
 ## Use
 
 ```bash
-standup serve                # open http://127.0.0.1:8765
+./run.sh
 ```
+
+One command on macOS, Linux, or Git Bash on Windows. It:
+
+- creates or refreshes `.venv` when needed (first run, or after `pyproject.toml` changes),
+- starts the server on port 8765, or the next free port if that one is taken
+  (`PORT=9000 ./run.sh` to start the search elsewhere),
+- opens the page in your browser once the server is answering.
+
+Press **Ctrl+C** to stop it; the server shuts down cleanly and frees the port.
+
+To run the server yourself instead: `standup serve` (with the virtualenv active),
+then open http://127.0.0.1:8765.
 
 1. Optionally type your plans and blockers.
 2. Click **Generate**, then **Copy prompt** and paste it into your AI.
@@ -127,3 +141,9 @@ sources:
 uv pip install -e ".[dev]"
 pytest
 ```
+
+## Roadmap: desktop app
+
+A click-to-open desktop app for macOS, Windows and Linux (its own window, no terminal
+or port) is designed but not built yet; see
+[docs/superpowers/specs/2026-11-18-desktop-app-design.md](docs/superpowers/specs/2026-11-18-desktop-app-design.md).
