@@ -31,7 +31,7 @@ def issue(key, status, assignee=ME, comments=(), flagged=None):
     }
 
 
-def mock_jira(router, in_progress, completed, captured=None):
+def mock_jira(router, in_progress, completed, captured=None, reassigned=()):
     router.get(f"{BASE}/rest/api/3/myself").respond(json={"accountId": ME})
     router.get(f"{BASE}/rest/api/3/field").respond(
         json=[{"id": "customfield_100", "name": "Flagged"}, {"id": "summary", "name": "Summary"}]
@@ -41,7 +41,12 @@ def mock_jira(router, in_progress, completed, captured=None):
         body = json.loads(request.content)
         if captured is not None:
             captured.append(body)
-        issues = completed if "CHANGED TO" in body["jql"] else in_progress
+        if "assignee CHANGED FROM" in body["jql"]:
+            issues = list(reassigned)
+        elif "CHANGED TO" in body["jql"]:
+            issues = completed
+        else:
+            issues = in_progress
         return httpx.Response(200, json={"issues": issues, "isLast": True})
 
     router.post(f"{BASE}/rest/api/3/search/jql").mock(side_effect=search)
@@ -134,6 +139,48 @@ def test_comments_filtered_to_window_and_plaintext(window):
     assert [(c.author, c.body) for c in t.comments] == [("Alice", "Waiting on the platform team")]
 
 
+def test_ticket_reassigned_away_is_handed_off_with_comments(window):
+    reassigned = [issue("OFF-5", "In Review", assignee="acc-reviewer", comments=[
+        ("Me", "Fixed the edge case, over to you", "2026-11-09T15:00:00.000+0000"),
+    ])]
+    captured = []
+    with respx.mock() as router:
+        mock_jira(router, [], [], captured, reassigned=reassigned)
+        r = src(project_keys=["OFF"]).collect(window)
+    assert r.errors == []
+    [t] = r.tickets
+    assert (t.key, t.category) == ("OFF-5", "completed")
+    assert [c.body for c in t.comments] == ["Fixed the edge case, over to you"]
+    jql = next(b["jql"] for b in captured if "assignee CHANGED FROM" in b["jql"])
+    assert jql == 'assignee CHANGED FROM currentUser() DURING ("-1980m", now()) AND project in (OFF)'
+
+
+def test_ticket_reassigned_away_and_back_is_skipped(window):
+    with respx.mock() as router:
+        mock_jira(router, [], [], reassigned=[issue("OFF-6", "To Do", assignee=ME)])
+        r = src(exclude_if_reassigned_to_me=False).collect(window)
+    assert r.tickets == []
+
+
+def test_truncated_comments_are_fetched_in_full(window):
+    truncated = issue("OFF-7", "QA", assignee="acc-qa", comments=[
+        ("Bob", "old comment", "2026-11-01T10:00:00.000+0000"),
+    ])
+    truncated["fields"]["comment"]["total"] = 2
+    with respx.mock() as router:
+        mock_jira(router, [], [truncated])
+        router.get(f"{BASE}/rest/api/3/issue/OFF-7/comment").respond(json={
+            "comments": [
+                {"author": {"displayName": "Me"}, "body": adf("Handed to QA"),
+                 "created": "2026-11-09T16:00:00.000+0000"},
+            ],
+            "isLast": True,
+        })
+        r = src().collect(window)
+    assert r.errors == []
+    assert [c.body for c in r.tickets[0].comments] == ["Handed to QA"]
+
+
 def test_flagged(window):
     with respx.mock() as router:
         mock_jira(router, IN_PROGRESS, COMPLETED)
@@ -185,6 +232,7 @@ def test_pagination_follows_next_page_token(window):
     pages = iter([
         {"issues": [issue("OFF-1", "In Progress")], "nextPageToken": "p2"},
         {"issues": [issue("OFF-4", "In Progress")], "isLast": True},
+        {"issues": [], "isLast": True},
         {"issues": [], "isLast": True},
     ])
     with respx.mock() as router:
