@@ -17,6 +17,7 @@ from ..config import JiraConfig
 from ..models import Comment, SourceResult, Ticket, TimeWindow
 
 MAX_TICKETS = 100
+MAX_COMMENTS = 100
 TIMEOUT = 15.0
 
 
@@ -140,16 +141,25 @@ class JiraSource:
         )
         jql_in_progress = f"assignee = currentUser() AND status in ({in_progress}){project}"
         jql_completed = f"({changed}) AND status not in ({in_progress}){project}"
+        # Handed off by reassigning, with or without a status change.
+        jql_reassigned = f"assignee CHANGED FROM currentUser() {during}{project}"
 
         seen: set[str] = set()
-        for jql, category in ((jql_in_progress, "in_progress"), (jql_completed, "completed")):
+        queries = (
+            (jql_in_progress, "in_progress", False),
+            (jql_completed, "completed", False),
+            (jql_reassigned, "completed", True),
+        )
+        for jql, category, reassigned_away in queries:
             for raw in self._search(client, base, auth, jql, wanted):
                 key = raw["key"]
                 if key in seen:
                     continue
                 f = raw.get("fields", {})
                 assignee_is_me = (f.get("assignee") or {}).get("accountId") == me
-                if category == "completed" and assignee_is_me and self.cfg.exclude_if_reassigned_to_me:
+                if category == "completed" and assignee_is_me and (
+                    reassigned_away or self.cfg.exclude_if_reassigned_to_me
+                ):
                     continue
                 seen.add(key)
                 result.tickets.append(Ticket(
@@ -161,8 +171,20 @@ class JiraSource:
                     source=self.name,
                     flagged=bool(f.get(flagged_field)) if flagged_field else False,
                     assignee_is_me=assignee_is_me,
-                    comments=self._comments(f, window),
+                    comments=self._comments(self._all_comments(client, base, auth, key, f), window),
                 ))
+
+    def _all_comments(self, client, base, auth, key: str, fields: dict) -> list[dict]:
+        """Comments embedded in search results can be truncated; fetch the newest page if so."""
+        embedded = fields.get("comment") or {}
+        comments = embedded.get("comments", [])
+        if embedded.get("total", len(comments)) <= len(comments):
+            return comments
+        page = self._request(
+            client, "GET", f"{base}/rest/api/3/issue/{key}/comment", auth,
+            params={"orderBy": "-created", "maxResults": MAX_COMMENTS},
+        )
+        return page.get("comments", [])
 
     def _search(self, client, base, auth, jql: str, fields: list[str]) -> list[dict]:
         issues: list[dict] = []
@@ -179,9 +201,9 @@ class JiraSource:
         return issues[:MAX_TICKETS]
 
     @staticmethod
-    def _comments(fields: dict, window: TimeWindow) -> list[Comment]:
+    def _comments(raw_comments: list[dict], window: TimeWindow) -> list[Comment]:
         out: list[Comment] = []
-        for c in (fields.get("comment") or {}).get("comments", []):
+        for c in raw_comments:
             try:
                 created = _parse_jira_time(c["created"])
             except (KeyError, ValueError):
@@ -193,4 +215,4 @@ class JiraSource:
                 body=adf_to_text(c.get("body")),
                 created_at=created,
             ))
-        return out
+        return sorted(out, key=lambda c: c.created_at)

@@ -39,6 +39,8 @@ Then edit `standup.yaml`:
 
 - `sources.jira.in_progress_statuses` / `handoff_statuses` — **must match your Jira
   workflow names**. If they don't, the page shows a "query rejected" error.
+  Tickets you reassigned to someone else in the window also count as handed off,
+  whatever their status, and their comments from the window are included.
 - `sources.git_local.scan_dirs` or `repos` — where your repos live.
 - `exclude_if_reassigned_to_me` — set `false` if your team doesn't reassign
   tickets to QA.
